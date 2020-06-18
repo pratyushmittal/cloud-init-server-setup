@@ -163,8 +163,8 @@ runcmd:
    - sudo sed -i "s/{HOSTNAME}/$(hostname)/g" /post-receive-hook
    - sudo sed -i "s/{HOSTNAME}/$(hostname)/g" /etc/motd
    # add repos
-   - git init --bare /home/ubuntu/repos/$(hostname).git
+   - su - ubuntu -c "git init --bare /home/ubuntu/repos/$(hostname).git"
    - mv /post-receive-hook /home/ubuntu/repos/$(hostname).git/hooks/post-receive
    - chown ubuntu /home/ubuntu/repos/$(hostname).git/hooks/post-receive
    - chmod +x /home/ubuntu/repos/$(hostname).git/hooks/post-receive
-   - mkdir -p /home/ubuntu/$(hostname)
+   - su - ubuntu -c "mkdir -p /home/ubuntu/$(hostname)"
