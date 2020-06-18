@@ -1,6 +1,19 @@
 # Configure servers in minutes
 
-Use `cloud-config.yml` to configure a virtual server in minutes.
+Use `cloud-config.yaml` to configure a virtual server in minutes.
+
+## Using
+
+The script installs:
+- ssh keys
+- timezone
+- postfix for crons emails
+- docker
+- docker-compose
+- repos directory
+- webapps directory
+
+Docker and Docker-compose are good for managing project specific dependencies. Use them.
 
 ## Setup on local machine
 
@@ -14,5 +27,18 @@ pip install -r requirements.txt
 
 ```bash
 # validation
-python validate-yaml.py
+python validate-yaml.py cloud-config.yaml
+
+# testing the script locally
+## https://multipass.run
+## https://cloudinit.readthedocs.io/en/latest/topics/faq.html#multipass
+multipass launch -n ubuntu-lts-custom --cloud-init cloud-config.yaml
+# get into bash
+multipass exec ubuntu-lts-custom bash
+# see logs
+#https://cloudinit.readthedocs.io/en/latest/topics/faq.html#where-are-the-logs
+cat /run/cloud-init/result.json
+# delete virtual clouds
+multipass delete ubuntu-lts-custom
+multipass purge
 ```

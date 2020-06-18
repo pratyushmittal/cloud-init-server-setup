@@ -1,0 +1,105 @@
+#cloud-config
+# supported modules: https://cloudinit.readthedocs.io/en/latest/topics/modules.html#
+preserve_hostname: true
+fqdn: www.myproject.com
+
+users:
+   - name: ubuntu
+     ssh_authorized_keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC2vj5ISvPVfyCCOI8dZFagrhEjwPTFletKbYuNiTIHTMKp91Q6lGQOy7geg4vVgRk7mxcZrEiLxHNrv/KqTyZpleIBgLYGnQB9u4vwNgNk6ORrODKItKKDLV3eNCCYZog8y5LGukHU5DGUgLjqiscQ16Y+TzkXH925riL2gvCSw1lQTy3rpiiW5RQwL1tAl29qZj2lD8r5Kp8YWwm98SdueYLFkTbd9SKSWZXkIewnePRD77O1dqGzafM3371+a2y2KuJjgPDyKFe8Dc/dXP3bocsJqPBjtrBHw6bDmH/xA0CLCn72sUE0fWrqxKSMFO87nFXzW6yXn+pRtZbIXC+b pratyushmittal@gmail.com
+     lock_passwd: True
+     sudo: ALL=(ALL) NOPASSWD:ALL
+     groups: sudo
+     shell: /bin/bash
+
+# Set timezone
+timezone: Asia/Kolkata
+
+# postfix selections during installation
+apt:
+   debconf_selections:
+      set1: postfix postfix/mailname string $HOSTNAME
+      set2: postfix postfix/main_mailer_type string 'Internet Site'
+
+package_update: true
+package_reboot_if_required: true
+packages:
+   - landscape-common
+   - curl
+   # for docker
+   - apt-transport-https
+   - ca-certificates
+   - software-properties-common
+   # postfix
+   - postfix
+   - mailutils
+   # DKIM
+   - opendkim
+   - opendkim-tools
+
+
+# write welcome message
+# files are created before runcmd
+write_files:
+- content: |
+   Hey your machine is all setup. Congrats!
+   Run these commands on you local machine to deploy.
+   git remote add live {HOSTNAME}:repos/{HOSTNAME}.git
+   git push live
+   --todo--
+   print DKIM entries for domain
+   Remove this message by editing /etc/motd
+  path: /etc/motd
+- content: |
+   #!/bin/bash
+
+   PROJECT=/home/ubuntu/{HOSTNAME}
+   BRANCH=master
+
+   echo "Project is $PROJECT with branch $BRANCH"
+
+   # exit if anything fails
+   set -e
+
+   echo "Checking out new code"
+   mkdir -p $PROJECT
+   git --work-tree=$PROJECT checkout $BRANCH -f
+
+   echo "Running post-receive"
+   cd $PROJECT
+   bash post-receive
+  path: /post-receive-hook
+
+runcmd:
+   # Firewall
+   - sudo ufw allow ssh
+   - sudo ufw limit ssh
+   - sudo ufw enable
+   # DKIM Keys
+   - sudo mkdir -p /etc/opendkim/keys/$(hostname)
+   - cd /etc/opendkim/keys/$(hostname) && sudo opendkim-genkey -s mail -d $(hostname)
+   - sudo chown opendkim:opendkim mail.private
+   # Install Docker
+   - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+   - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+   - sudo apt-get update
+   - sudo apt-get -y install docker-ce
+   # Manage docker as non-root
+   - sudo groupadd docker
+   - sudo usermod -aG docker ubuntu
+   # Start docker on startup
+   - sudo systemctl enable docker
+   # Install docker-compose
+   - sudo curl -L "https://github.com/docker/compose/releases/download/1.26.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+   - sudo chmod +x /usr/local/bin/docker-compose
+   # Add docker command-line completion
+   -  sudo curl -L https://raw.githubusercontent.com/docker/compose/1.26.0/contrib/completion/bash/docker-compose -o /etc/bash_completion.d/docker-compose
+   # replace hostnames in files
+   - sed -i 's/{hostname}/$(hostname)/g' /home/ubuntu/post-receive
+   - sudo sed -i 's/{hostname}/$(hostname)/g' /etc/motd
+   # add repos
+   - git init --bare /home/ubuntu/repos/$(hostname).git
+   - mv /post-receive-hook /home/ubuntu/repos/$(hostname).git/hooks/post-receive
+   - chown ubuntu /home/ubuntu/repos/$(hostname).git/hooks/post-receive
+   - chmod +x /home/ubuntu/repos/$(hostname).git/hooks/post-receive
+   - mkdir -p /home/ubuntu/$(hostname)
