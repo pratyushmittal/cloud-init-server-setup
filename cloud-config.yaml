@@ -1,7 +1,8 @@
 #cloud-config
 # supported modules: https://cloudinit.readthedocs.io/en/latest/topics/modules.html#
-preserve_hostname: true
+preserve_hostname: false
 fqdn: www.myproject.com
+hostname: myproject
 
 users:
    - name: ubuntu
@@ -111,12 +112,16 @@ packages:
 write_files:
 - content: |
    Hey your machine is all setup. Congrats!
+
    Run these commands on you local machine to deploy.
    git remote add live {HOSTNAME}:repos/{HOSTNAME}.git
    git push live
+
    --todo--
+   setup postfix
    print DKIM entries for domain
-   Remove this message by editing /etc/motd
+
+   You can remove this message by editing /etc/motd
   path: /etc/motd
 - content: |
    #!/bin/bash
